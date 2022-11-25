@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueuetyServer", "QueuetyServer\QueuetyServer.csproj", "{0A9F0440-0CDD-4940-99BE-93F1E0AA295B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueuetyServer.Tests", "QueuetyServer.Tests\QueuetyServer.Tests.csproj", "{8842ABB1-D330-4835-8E37-DEAD6C3A6A84}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0A9F0440-0CDD-4940-99BE-93F1E0AA295B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A9F0440-0CDD-4940-99BE-93F1E0AA295B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A9F0440-0CDD-4940-99BE-93F1E0AA295B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A9F0440-0CDD-4940-99BE-93F1E0AA295B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8842ABB1-D330-4835-8E37-DEAD6C3A6A84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8842ABB1-D330-4835-8E37-DEAD6C3A6A84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8842ABB1-D330-4835-8E37-DEAD6C3A6A84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8842ABB1-D330-4835-8E37-DEAD6C3A6A84}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
