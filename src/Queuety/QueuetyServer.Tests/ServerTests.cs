@@ -112,4 +112,52 @@ public class ServerTests
         result.BatchId.Should().NotBeNull();
         result.Messages[0].Should().Be(message);    
     }
+
+    [Test]
+    public void CommitBatch_BatchIsRemoved()
+    {
+        var message = new Message
+        {
+            Subject = "subject",
+            Key = "key",
+            Data = "data"
+        };
+
+        _server.AddMessage("queue", message);
+
+        var batch = _server.GetBatch("queue", 1);
+
+        SystemTime.UtcNow = () => DateTime.Parse("2022-01-01T00:02:00Z");
+        
+        _server.CommitBatch("queue", batch.BatchId);
+        
+        var result = _server.GetBatch("queue", 1);
+        
+        result.BatchId.Should().BeEmpty();
+        result.Messages.Should().BeEmpty();
+    }
+
+    [Test]
+    public void DeleteQueue_ShouldReturnNoMessages()
+    {
+        _server.AddMessage("queue", new Message());
+        _server.DeleteQueue("queue");
+        
+        var result = _server.GetBatch("queue", 1);
+        
+        result.BatchId.Should().BeEmpty();
+        result.Messages.Should().BeEmpty();
+    }
+    
+    [Test]
+    public void DeleteMessages_ShouldReturnNoMessages()
+    {
+        _server.AddMessage("queue", new Message());
+        _server.DeleteMessages("queue");
+        
+        var result = _server.GetBatch("queue", 1);
+        
+        result.BatchId.Should().BeEmpty();
+        result.Messages.Should().BeEmpty();
+    }
 }
