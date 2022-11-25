@@ -9,7 +9,8 @@ public class ServerTests
     [SetUp]
     public void Setup()
     {
-        _server = new Server();
+        _server = new Server(new ServerSettings());
+        SystemTime.UtcNow = () => DateTime.Parse("2022-01-01T00:00:00Z");
     }
 
     [Test]
@@ -88,5 +89,27 @@ public class ServerTests
     
         result.BatchId.Should().BeEmpty();
         result.Messages.Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetBatch_BatchExpires_ReturnsBatch()
+    {
+        var message = new Message
+        {
+            Subject = "subject",
+            Key = "key",
+            Data = "data"
+        };
+
+        _server.AddMessage("queue", message);
+
+        var _ = _server.GetBatch("queue", 1);
+
+        SystemTime.UtcNow = () => DateTime.Parse("2022-01-01T00:02:00Z");
+        
+        var result = _server.GetBatch("queue", 1);
+        
+        result.BatchId.Should().NotBeNull();
+        result.Messages[0].Should().Be(message);    
     }
 }

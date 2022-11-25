@@ -1,30 +1,84 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace QueuetyServer;
 
-public class Message
+public class ServerQueue
 {
-    public string Key { get; set; } = string.Empty;
-    public string Subject { get; set; } = string.Empty;
-    public string Data { get; set; } = string.Empty;
-}
+    private readonly ServerSettings _settings;
 
-public class MessageBatch
-{
-    public string BatchId { get; set; } = string.Empty;
-    public List<Message> Messages { get; set; } = new();
+    public ServerQueue(ServerSettings settings)
+    {
+        _settings = settings;
+    }
+
+    public readonly Queue<Message> Messages = new();
+    private readonly List<MessageBatch> _batches = new();
+
+    public void Enqueue(Message message)
+    {
+        Messages.Enqueue(message);
+    }
+
+    private Message Dequeue()
+    {
+        return Messages.Dequeue();
+    }
+
+    public MessageBatch GetBatch(int batchSize)
+    {
+        var expiredBatch = _batches.FirstOrDefault(x => x.HasExpired);
+        if (expiredBatch != null)
+        {
+            expiredBatch.Expiry = CalculateExpiry();
+            return expiredBatch; 
+        }
+        
+        var result = new List<Message>(batchSize);
+        while (Messages.Count > 0 && result.Count < batchSize)
+        {
+            var message = Dequeue();
+            result.Add(message);
+        }
+
+        if (result.Count == 0)
+            return MessageBatch.EmptyBatch;
+
+        var messageBatch = new MessageBatch
+        {
+            BatchId = Guid.NewGuid().ToString(),
+            Messages = result
+        };
+        
+        _batches.Add(messageBatch);
+        
+        return messageBatch;
+    }
+
+    private DateTime CalculateExpiry()
+    {
+        var expiry = SystemTime.UtcNow().Add(TimeSpan.FromSeconds(_settings.BatchExpirySeconds));
+        return expiry;
+    }
 }
 
 public class Server
 {
-    private readonly Dictionary<string, Queue<Message>> _messages = new();
+    private readonly ServerSettings _settings;
+
+    public Server(ServerSettings settings)
+    {
+        _settings = settings;
+    }
+
+    private readonly Dictionary<string, ServerQueue> _messages = new();
     
     public void AddMessage(string queueName, Message message)
     {
-        if (_messages.TryGetValue(queueName, out var messages))
+        if (_messages.TryGetValue(queueName, out var queue))
         {
-            foreach (var existingMessage in messages)
+            foreach (var existingMessage in queue.Messages)
             {
                 if (existingMessage == null)
                     break;
@@ -38,11 +92,11 @@ public class Server
                 return;
             }
             
-            messages.Enqueue(message);
+            queue.Enqueue(message);
         }
         else
         {
-            var newMessages = new Queue<Message>();
+            var newMessages = new ServerQueue(_settings);
             newMessages.Enqueue(message);
             _messages[queueName] = newMessages;
         }
@@ -62,29 +116,12 @@ public class Server
     {
         throw new NotImplementedException();
     }
-
-    private static readonly MessageBatch EmptyBatch = new();
     
     public MessageBatch GetBatch(string queueName, int batchSize)
     {
-        if (!_messages.TryGetValue(queueName, out var messages))
-            return EmptyBatch;
-
-        var result = new List<Message>(batchSize);
-        while (messages.Count > 0 && result.Count < batchSize)
-        {
-            var message = messages.Dequeue();
-            result.Add(message);
-        }
-
-        if (result.Count == 0)
-            return EmptyBatch;
-
-        return new MessageBatch
-        {
-            BatchId = Guid.NewGuid().ToString(),
-            Messages = result
-        };
+        return _messages.TryGetValue(queueName, out var messages) 
+            ? messages.GetBatch(batchSize) 
+            : MessageBatch.EmptyBatch;
     }
 
     public void CommitBatch(string queueName, string batchId)
