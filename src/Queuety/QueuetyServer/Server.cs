@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
 
 namespace QueuetyServer;
 
@@ -11,45 +12,66 @@ public class Server
         _settings = settings;
     }
 
-    private readonly Dictionary<string, ServerQueue> _queues = new();
+    private readonly ConcurrentDictionary<string, ServerQueue> _queues = new();
     
     public void AddMessage(string queueName, Message message)
     {
-        if (_queues.TryGetValue(queueName, out var queue))
+        lock (_queues)
         {
-            queue.AddMessage(message);
-        }
-        else
-        {
-            var newMessages = new ServerQueue(_settings);
-            newMessages.Enqueue(message);
-            _queues[queueName] = newMessages;
+            if (_queues.TryGetValue(queueName, out var queue))
+            {
+                queue.AddMessage(message);
+            }
+            else
+            {
+                var newMessages = new ServerQueue(_settings);
+                newMessages.Enqueue(message);
+                _queues[queueName] = newMessages;
+            }
         }
     }
 
     public void DeleteQueue(string queueName)
     {
-        _queues.Remove(queueName);
+        _queues.TryRemove(queueName, out _);
     }
 
     public void DeleteMessages(string queueName)
     {
-        GetQueue(queueName)?.DeleteMessages();
+        WithQueue(queueName, queue => queue.DeleteMessages());
     }
 
     public MessageBatch GetBatch(string queueName, int batchSize)
     {
-        return GetQueue(queueName)?.GetBatch(batchSize) ?? MessageBatch.EmptyBatch;
+        return WithQueue(queueName,
+            queue => queue.GetBatch(batchSize),
+            MessageBatch.EmptyBatch);
     }
 
     public void CommitBatch(string queueName, string batchId)
     {
-        GetQueue(queueName)?.CommitBatch(batchId);
+        WithQueue(queueName, queue => queue.CommitBatch(batchId));
     }
 
-    private ServerQueue? GetQueue(string queueName)
+    private T WithQueue<T>(string queueName, Func<ServerQueue, T> action, T defaultValue)
     {
-        _queues.TryGetValue(queueName, out var result);
-        return result;
+        if (!_queues.TryGetValue(queueName, out var queue))
+            return defaultValue;
+
+        lock (queue)
+        {
+            return action(queue);
+        }
+    }
+    
+    private void WithQueue(string queueName, Action<ServerQueue> action)
+    {
+        if (!_queues.TryGetValue(queueName, out var queue))
+            return;
+
+        lock (queue)
+        {
+            action(queue);
+        }
     }
 }

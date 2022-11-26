@@ -41,12 +41,13 @@ public class ServerTests
             Data = "data2"
         });
 
-        var batch = _server.GetBatch("queue", 1);
+        var batch = _server.GetBatch("queue", 2);
 
+        batch.Messages.Should().HaveCount(1);
         batch.Messages[0].Key.Should().Be("key2");
         batch.Messages[0].Data.Should().Be("data2");
     }
-
+    
     [Test]
     public void GetBatch_EmptyQueue_ReturnsNothing()
     {
