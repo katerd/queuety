@@ -30,15 +30,21 @@ public class ServerQueue
         return message;
     }
 
+    private MessageBatch? GetExpiredBatch()
+    {
+        var first = _batches.FirstOrDefault();
+        return first?.HasExpired ?? false ? first : null;
+    }
+    
     public MessageBatch GetBatch(int batchSize)
     {
-        var expiredBatch = _batches.FirstOrDefault(x => x.HasExpired);
+        var expiredBatch = GetExpiredBatch();
         if (expiredBatch != null)
         {
             expiredBatch.Expiry = CalculateExpiry();
             return expiredBatch;
         }
-        
+
         var result = new List<Message>(batchSize);
         while (_messages.Count > 0 && result.Count < batchSize)
         {
@@ -46,15 +52,18 @@ public class ServerQueue
             result.Add(message);
         }
 
-        return result.Count == 0 ? MessageBatch.EmptyBatch : AddBatch(result);
+        return result.Count == 0 
+            ? MessageBatch.EmptyBatch 
+            : AddBatch(result.ToArray());
     }
 
-    private MessageBatch AddBatch(List<Message> result)
+    private MessageBatch AddBatch(Message[] result)
     {
         var batch = new MessageBatch
         {
             BatchId = Guid.NewGuid().ToString(),
-            Messages = result
+            Messages = result,
+            Expiry = CalculateExpiry()
         };
         
         _batches.Add(batch);
@@ -83,8 +92,7 @@ public class ServerQueue
     {
         if (_subject.TryGetValue(message.Subject, out var matchingMessage))
         {
-            matchingMessage.Data = message.Data;
-            matchingMessage.Key = message.Key;
+            matchingMessage.UpdateMessage(message);
             return;
         }
         

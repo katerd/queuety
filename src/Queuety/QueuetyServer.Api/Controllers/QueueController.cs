@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Net;
+using Microsoft.AspNetCore.Mvc;
 
 namespace QueuetyServer.Api.Controllers;
 
@@ -35,10 +36,16 @@ public class QueueController : ControllerBase
     }
 
     [HttpPost("batch")]
-    public MessageBatch GetMessages([FromRoute] string queueName, [FromQuery] int batchSize = 10)
+    [ProducesResponseType(typeof(MessageBatch), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public IActionResult GetMessages([FromRoute] string queueName, [FromQuery] int batchSize = 10)
     {
         var batch = _server.GetBatch(queueName, batchSize);
-        return batch;
+
+        if (batch.Messages?.Length == 0)
+            return NoContent();
+        
+        return Ok(batch);
     }
 
     [HttpPost("batch/{batchId}/commit")]
